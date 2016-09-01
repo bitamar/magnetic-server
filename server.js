@@ -4,7 +4,7 @@ var http = require('http').Server(app);
 
 var port = process.env.PORT || 8080;
 
-app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
+app.use(bodyParser.urlencoded({ extended: true }));
 
 var nextMagnetId = 3;
 var magnets = {
@@ -36,9 +36,9 @@ app.patch('/:magnetId', function(req, res) {
     res.status(403).end('gotcha');
   }
 
-  magnet.x = req.body.x;
-  magnet.y = req.body.y;
-  magnet.rotation = req.body.rotation;
+  magnet.x = parseFloat(req.body.x);
+  magnet.y = parseFloat(req.body.y);
+  magnet.rotation = parseFloat(req.body.rotation);
 
   res.send(magnet);
 });
