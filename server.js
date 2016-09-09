@@ -7,25 +7,36 @@ var port = process.env.PORT || 8080;
 app.use(bodyParser.urlencoded({ extended: true }));
 
 var maxId = 0;
-
-var initialWords = ["nothing", "just", "fine", "fish", "mine", "sloth", "cat", "and", "again", "or", "and", "not", "are", "the", "the", "surely", "kitchen", "fabric", "no", "not"];
 var magnets = {};
-initialWords.forEach(function(word) {
-  maxId++;
-  magnets[maxId] = {
-    id: maxId.toString(),
-    word: word,
-    position: {
-      x: Math.floor(Math.random() * 1000),
-      y: Math.floor(Math.random() * 1000)
-    },
-    rotation: Math.random() - 0.5
-  };
-});
+
+function reset() {
+  maxId = 0;
+  magnets = {};
+  var initialWords = ["nothing", "just", "fine", "fish", "mine", "sloth", "cat", "and", "again", "or", "and", "not", "are", "the", "the", "surely", "kitchen", "fabric", "no", "not"];
+
+  initialWords.forEach(function(word) {
+    maxId++;
+    magnets[maxId] = {
+      id: maxId.toString(),
+      word: word,
+      position: {
+        x: Math.floor(Math.random() * 1000),
+        y: Math.floor(Math.random() * 1000)
+      },
+      rotation: (Math.random() * 4) - 2
+    };
+  });
+}
+reset();
 
 app.use(function(req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
     next();
+});
+
+app.get("/reset", function(req, res) {
+  reset();
+  res.send(magnets);
 });
 
 app.get("/", function(req, res) {
