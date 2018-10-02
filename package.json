@@ -1,6 +1,6 @@
 {
   "name": "magnetic-server",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Server for magnetic board",
   "main": "index.js",
   "scripts": {
@@ -17,8 +17,6 @@
   },
   "homepage": "https://github.com/bitamar/magnetic-server#readme",
   "dependencies": {
-    "body-parser": "1.15.2",
-    "express": "4.14.0",
-    "socket.io": "1.4.8"
+    "ws": "^6.0.0"
   }
 }
