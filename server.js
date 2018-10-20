@@ -6,6 +6,7 @@ const wss = new WebSocket.Server({ port: port });
 
 let maxId = 0;
 let magnets = {};
+let locked = new Set();
 
 function reset() {
     maxId = 0;
@@ -20,13 +21,13 @@ function reset() {
     initialWords.forEach(function(word) {
         maxId++;
         magnets[maxId] = {
-            id: maxId.toString(),
-            word: word,
-            position: {
-                x: Math.floor(Math.random() * 1000),
-                y: Math.floor(Math.random() * 1000)
-            },
-            rotation: (Math.random() * 4) - 2
+            i: maxId.toString(),
+            w: word,
+            x: Math.floor(Math.random() * 1000),
+            y: Math.floor(Math.random() * 1000),
+            r: (Math.random() * 4) - 2,
+            l: false,
+            u: 0
         };
     });
 }
@@ -36,8 +37,9 @@ wss.on('connection', function connection(ws) {
     ws.send(JSON.stringify(magnets));
     ws.on('message', function incoming(data) {
         // Validate the incoming json.
+        let move = {};
         try {
-            var move = JSON.parse(data);
+            move = JSON.parse(data);
         }
         catch (e) {
             console.log('invalid json: ' + data);
@@ -57,15 +59,39 @@ wss.on('connection', function connection(ws) {
         }
 
         // Update the move on the magnet.
-        magnets[move.i].rotation = move.r;
-        magnets[move.i].position.x = move.x;
-        magnets[move.i].position.y = move.y;
+        const i = move.i;
+        magnets[i].r = move.r;
+        magnets[i].x = move.x;
+        magnets[i].y = move.y;
+        magnets[i].l = true;
+        magnets[i].u = Date.now();
+        locked.add(i);
 
         // Broadcast to everyone else.
+        const json = JSON.stringify(move);
         wss.clients.forEach(function each(client) {
             if (client !== ws && client.readyState === WebSocket.OPEN) {
-                client.send(JSON.stringify(move));
+                client.send(json);
             }
         });
     });
 });
+
+// Unlock magnets.
+const lockTime = 1000;
+setInterval(function() {
+    const now = Date.now();
+    locked.forEach(function (i) {
+        if (now - magnets[i].u < lockTime) {
+            return;
+        }
+        // The lock is older than lockTime.
+        magnets[i].l = false;
+        locked.delete(i);
+        // Send unlock message to all.
+        const json = JSON.stringify({unlock: i});
+        wss.clients.forEach(function each(client) {
+            client.send(json);
+        });
+    });
+}, lockTime);
