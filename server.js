@@ -19,59 +19,40 @@ function reset() {
     ];
 
     initialWords.forEach(function(word) {
-        maxId++;
-        magnets[maxId] = {
-            i: maxId.toString(),
-            w: word,
-            x: Math.floor(Math.random() * 1000),
-            y: Math.floor(Math.random() * 1000),
-            r: (Math.random() * 4) - 2,
-            l: false,
-            u: 0
-        };
+       create(word)
     });
 }
 reset();
 
 wss.on('connection', function connection(ws) {
     ws.send(JSON.stringify(magnets));
-    ws.on('message', function incoming(data) {
+    ws.on('message', function incoming(message) {
         // Validate the incoming json.
-        let move = {};
+        let data = {};
         try {
-            move = JSON.parse(data);
+            data = JSON.parse(message);
         }
         catch (e) {
-            console.log('invalid json: ' + data);
-            return;
-        }
-        if (isNaN(move.i) || isNaN(move.x) || isNaN(move.y) || isNaN(move.r)) {
-            console.log('invalid data: ' + data);
-            return;
-        }
-        if (Object.keys(move).length !== 4) {
-            console.log('too many properties: ' + data);
-            return;
-        }
-        if (!magnets[move.i]) {
-            console.log('no such id: ' + data);
+            console.log('invalid json: ' + message);
             return;
         }
 
-        // Update the move on the magnet.
-        const i = move.i;
-        magnets[i].r = move.r;
-        magnets[i].x = move.x;
-        magnets[i].y = move.y;
-        magnets[i].l = true;
-        magnets[i].u = Date.now();
-        locked.add(i);
+        let broadcast = handleMove(data) || handleCreate(data);
+        if (!broadcast) {
+            console.log('invalid message: ' + message);
+            return;
+        }
 
-        // Broadcast to everyone else.
-        const json = JSON.stringify(move);
+        // Broadcast result.
+        const includeCurrentClient = broadcast.includeCurrentClient;
+        delete broadcast.includeCurrentClient;
+
+        const json = JSON.stringify(broadcast);
         wss.clients.forEach(function each(client) {
-            if (client !== ws && client.readyState === WebSocket.OPEN) {
-                client.send(json);
+            if (client.readyState === WebSocket.OPEN) {
+                if (includeCurrentClient || client !== ws) {
+                    client.send(json);
+                }
             }
         });
     });
@@ -95,3 +76,55 @@ setInterval(function() {
         });
     });
 }, lockTime);
+
+
+function handleMove(move) {
+    if (isNaN(move.i) || isNaN(move.x) || isNaN(move.y) || isNaN(move.r)) {
+        return false;
+    }
+    if (Object.keys(move).length !== 4) {
+        return false;
+    }
+    if (!magnets[move.i]) {
+        return false;
+    }
+
+    // Update the move on the magnet.
+    const i = move.i;
+    magnets[i].r = move.r;
+    magnets[i].x = move.x;
+    magnets[i].y = move.y;
+    magnets[i].l = true;
+    magnets[i].u = Date.now();
+    locked.add(i);
+    move.includeCurrentClient = false;
+    return move;
+}
+
+function handleCreate(data) {
+    if (typeof data.add !== 'string') {
+        return false;
+    }
+    if (Object.keys(data).length !== 1) {
+        return false;
+    }
+
+    let magnet = create(data.add);
+    magnet.includeCurrentClient = true;
+    return magnet;
+}
+
+function create(word) {
+    maxId++;
+    magnets[maxId] = {
+        i: maxId.toString(),
+        w: word,
+        x: Math.floor(Math.random() * 1000),
+        y: Math.floor(Math.random() * 1000),
+        r: (Math.random() * 4) - 2,
+        l: false,
+        u: Date.now()
+    };
+
+    return magnets[maxId];
+}
